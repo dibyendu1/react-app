@@ -15,8 +15,8 @@ jobs:
         - name : Checkout
           uses : actions/checkout@v4.2.1
 
-        - name: Run simple command
-          run : echo "Hello, World!"
+        # - name: Run simple command
+        #   run : echo "Hello, World!"
 
         # - name: Set up Java JDK
         #   uses: actions/setup-java@v4.4.0
