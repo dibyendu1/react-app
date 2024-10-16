@@ -22,6 +22,11 @@ jobs:
         docker-images: false
         swap-storage: true
 
+    - name: Checkout repository
+      uses: actions/checkout@v4  # This step pulls your repository's code into the runner
+
+    - name: Verify directory
+      run: ls -la  # This step lists files to confirm the android directory exists
 
     - name: Set up Java JDK
       uses: actions/setup-java@v4.4.0
