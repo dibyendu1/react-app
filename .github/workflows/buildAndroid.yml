@@ -39,4 +39,4 @@ jobs:
         uses: actions/upload-artifact@v4.4.3
         with:
           name: react-app.apk
-          path: android/app/build/outputs/apk/release/app-release.apk
+          path: android/app/build/outputs/apk/release/apps-release.apk
