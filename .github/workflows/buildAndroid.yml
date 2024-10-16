@@ -15,3 +15,16 @@ jobs:
         - name : Checkout
           uses : actions/checkout@v4.2.1
 
+        - name: Set up Java JDK
+          uses: actions/setup-java@v4.4.0
+
+
+        - name: Build with gradle
+          uses: cd android && ./gradlew assembleRelease
+
+        - name: Upload build artifact
+          uses: actions/upload-artifact@v4.4.3
+          with :
+            name : react-app.apk
+            path : android/app/build/outputs/apk/release/app-debug.apk
+
