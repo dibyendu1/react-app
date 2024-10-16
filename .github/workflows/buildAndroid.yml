@@ -15,16 +15,19 @@ jobs:
         - name : Checkout
           uses : actions/checkout@v4.2.1
 
-        - name: Set up Java JDK
-          uses: actions/setup-java@v4.4.0
+        - name: Run simple command
+          run : echo "Hello, World!"
+
+        # - name: Set up Java JDK
+        #   uses: actions/setup-java@v4.4.0
 
 
-        - name: Build with gradle
-          run : cd android && ./gradlew assembleRelease
+        # - name: Build with gradle
+        #   run : cd android && ./gradlew assembleRelease
 
-        - name: Upload build artifact
-          uses: actions/upload-artifact@v4.4.3
-          with :
-            name : react-app.apk
-            path : android/app/build/outputs/apk/release/apps-debug.apk
+        # - name: Upload build artifact
+        #   uses: actions/upload-artifact@v4.4.3
+        #   with :
+        #     name : react-app.apk
+        #     path : android/app/build/outputs/apk/release/apps-debug.apk
 
