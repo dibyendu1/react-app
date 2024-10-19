@@ -1,46 +1,40 @@
 import React, { useCallback } from "react";
 import {
   FlatList,
-  ListRenderItemInfo,
   Modal,
   SafeAreaView,
   Text,
   StyleSheet,
   TouchableOpacity,
+  View,
 } from "react-native";
-import { Device } from "react-native-ble-plx";
 
-const DeviceModalListItem = (props) => {
-  const { item, connectToPeripheral, closeModal } = props;
-
+// List item component for rendering each device
+const DeviceModalListItem = ({ item, connectToPeripheral, closeModal }) => {
   const connectAndCloseModal = useCallback(() => {
-    connectToPeripheral(item.item);
+    connectToPeripheral(item);
     closeModal();
-  }, [closeModal, connectToPeripheral, item.item]);
+  }, [closeModal, connectToPeripheral, item]);
 
   return (
-    <TouchableOpacity
-      onPress={connectAndCloseModal}
-      style={modalStyle.ctaButton}
-    >
-      <Text style={modalStyle.ctaButtonText}>{item.item.name}</Text>
+    <TouchableOpacity onPress={connectAndCloseModal} style={modalStyle.ctaButton}>
+      <Text style={modalStyle.ctaButtonText}>
+        {item.name || item.id || "Unnamed device"} {/* Show name or fallback to MAC (id) */}
+      </Text>
     </TouchableOpacity>
   );
 };
 
-const DeviceModal = (props) => {
-  const { devices, visible, connectToPeripheral, closeModal } = props;
-
+// Main Modal component to show the list of devices
+const DeviceModal = ({ devices, visible, connectToPeripheral, closeModal }) => {
   const renderDeviceModalListItem = useCallback(
-    (item) => {
-      return (
-        <DeviceModalListItem
-          item={item}
-          connectToPeripheral={connectToPeripheral}
-          closeModal={closeModal}
-        />
-      );
-    },
+    ({ item }) => (
+      <DeviceModalListItem
+        item={item}
+        connectToPeripheral={connectToPeripheral}
+        closeModal={closeModal}
+      />
+    ),
     [closeModal, connectToPeripheral]
   );
 
@@ -56,12 +50,16 @@ const DeviceModal = (props) => {
           Tap on a device to connect
         </Text>
         <FlatList
-  contentContainerStyle={modalStyle.modalFlatlistContiner}
-  data={devices}
-  keyExtractor={(item) => item.id}  // Use the device's unique ID as the key
-  renderItem={renderDeviceModalListItem}
-/>
-
+          contentContainerStyle={modalStyle.modalFlatlistContainer}
+          data={devices}
+          keyExtractor={(item) => item.key}  /* Ensuring unique key for every item */
+          renderItem={renderDeviceModalListItem}
+        />
+        <View style={modalStyle.closeButtonContainer}>
+          <TouchableOpacity onPress={closeModal} style={modalStyle.ctaButton}>
+            <Text style={modalStyle.ctaButtonText}>Close</Text>
+          </TouchableOpacity>
+        </View>
       </SafeAreaView>
     </Modal>
   );
@@ -72,17 +70,9 @@ const modalStyle = StyleSheet.create({
     flex: 1,
     backgroundColor: "#f2f2f2",
   },
-  modalFlatlistContiner: {
-    flex: 1,
-    justifyContent: "center",
-  },
-  modalCellOutline: {
-    borderWidth: 1,
-    borderColor: "black",
-    alignItems: "center",
-    marginHorizontal: 20,
-    paddingVertical: 15,
-    borderRadius: 8,
+  modalFlatlistContainer: {
+    flexGrow: 1,
+    paddingBottom: 20,
   },
   modalTitle: {
     flex: 1,
@@ -108,6 +98,10 @@ const modalStyle = StyleSheet.create({
     fontSize: 18,
     fontWeight: "bold",
     color: "white",
+  },
+  closeButtonContainer: {
+    marginBottom: 20,
+    alignItems: "center",
   },
 });
 

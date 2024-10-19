@@ -1,14 +1,23 @@
 import { useMemo, useState } from "react";
 import { PermissionsAndroid, Platform, Alert, Linking } from "react-native";
 import { BleManager } from "react-native-ble-plx";
+import BluetoothClassic from 'react-native-bluetooth-classic';
 import * as ExpoDevice from "expo-device";
 
 function useBLE() {
   const bleManager = useMemo(() => new BleManager(), []);
   const [allDevices, setAllDevices] = useState([]);
+  const [classicDevices, setClassicDevices] = useState([]);
   const [connectedDevice, setConnectedDevice] = useState(null);
+  const [discoveredDeviceIds, setDiscoveredDeviceIds] = useState(new Set());  // Track discovered BLE devices
 
-  // Request permissions for Android 12+ (API level 31+)
+  // Reset the device lists and discovered IDs when closing or before starting a new scan
+  const resetDeviceLists = () => {
+    setAllDevices([]);
+    setClassicDevices([]);
+    setDiscoveredDeviceIds(new Set());  // Reset discovered device IDs
+  };
+
   const requestAndroid31Permissions = async () => {
     const bluetoothScanPermission = await PermissionsAndroid.request(
       PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
@@ -44,7 +53,16 @@ function useBLE() {
     );
   };
 
-  // Request permissions for pre-Android 12 (below API level 31)
+  const openBluetoothSettings = () => {
+    if (Platform.OS === "android") {
+      Linking.openURL('android.settings.BLUETOOTH_SETTINGS');
+    } else if (Platform.OS === "ios") {
+      Linking.openURL('App-Prefs:root=Bluetooth'); // Works for iOS 11+ 
+    } else {
+      Alert.alert("Platform not supported");
+    }
+  };
+
   const requestPermissions = async () => {
     if (Platform.OS === "android") {
       if ((ExpoDevice.platformApiLevel ?? -1) < 31) {
@@ -61,11 +79,10 @@ function useBLE() {
         return await requestAndroid31Permissions();
       }
     } else {
-      return true; // On iOS, permissions are granted automatically
+      return true;  // iOS permissions are granted automatically
     }
   };
 
-  // Check Bluetooth state and prompt user if disabled
   const checkBluetoothState = () => {
     bleManager.onStateChange((state) => {
       if (state === "PoweredOff") {
@@ -75,7 +92,7 @@ function useBLE() {
           [
             {
               text: "Turn On",
-              onPress: () => Linking.openSettings(), // Opens Bluetooth settings
+              onPress: openBluetoothSettings,
             },
             {
               text: "Cancel",
@@ -89,36 +106,57 @@ function useBLE() {
     }, true);
   };
 
-  // Prevent adding duplicate devices
-  const isDuplicateDevice = (devices, nextDevice) => {
-    return devices.some((device) => device.id === nextDevice.id);
+  // Add or update device in the list
+  const addOrUpdateDevice = (deviceList, newDevice, type) => {
+    const existingDeviceIndex = deviceList.findIndex(
+      (device) => device.id === newDevice.id && device.type === type
+    );
+
+    if (existingDeviceIndex > -1) {
+      const updatedDevices = [...deviceList];
+      updatedDevices[existingDeviceIndex] = { ...updatedDevices[existingDeviceIndex], ...newDevice };
+      return updatedDevices;
+    } else {
+      return [...deviceList, { ...newDevice, type, key: `${type}_${newDevice.id}` }];
+    }
   };
 
-  // Start continuous scanning for BLE devices
+  // Scan for Bluetooth Classic devices
+  const scanForClassicDevices = async () => {
+    try {
+      const devices = await BluetoothClassic.startDiscovery();
+      console.log("Found Bluetooth Classic devices:", devices);
+      setClassicDevices((prevDevices) =>
+        devices.reduce(
+          (deviceList, device) =>
+            addOrUpdateDevice(deviceList, { ...device }, 'Classic'),
+          prevDevices
+        )
+      );
+    } catch (error) {
+      console.error("Error scanning for Bluetooth Classic devices:", error);
+    }
+  };
+
+  // Start scanning for BLE devices, prevent duplicates
   const scanForPeripherals = () => {
-    console.log("Starting device scan...");
+    console.log("Starting BLE device scan...");
     bleManager.startDeviceScan(null, null, (error, device) => {
       if (error) {
-        console.error("Error during scan:", error.message);
+        console.error("Error during BLE scan:", error.message);
         return;
       }
 
-      // Check for both `device.name` and `device.localName`
-      const deviceName = device.name || device.localName || "Unnamed device";
-
-      if (device?.id) {
-        setAllDevices((prevState) => {
-          if (!isDuplicateDevice(prevState, device)) {
-            console.log("Found device:", deviceName);
-            return [...prevState, { ...device, name: deviceName }];
-          }
-          return prevState; // Do not add duplicates
-        });
+      if (device?.id && !discoveredDeviceIds.has(device.id)) {
+        setDiscoveredDeviceIds((prevSet) => new Set(prevSet).add(device.id));  // Mark device as discovered
+        const deviceName = device.name || device.localName || "Unnamed device";
+        setAllDevices((prevDevices) =>
+          addOrUpdateDevice(prevDevices, { ...device, name: deviceName }, 'BLE')
+        );
       }
     });
   };
 
-  // Stop scanning for BLE devices
   const stopScanning = () => {
     console.log("Stopping device scan...");
     bleManager.stopDeviceScan();
@@ -127,9 +165,12 @@ function useBLE() {
   return {
     requestPermissions,
     scanForPeripherals,
+    scanForClassicDevices,
     stopScanning,
-    checkBluetoothState,  // Include this in the return
+    resetDeviceLists,
+    checkBluetoothState,
     allDevices,
+    classicDevices,
     connectedDevice,
   };
 }
